@@ -87,32 +87,62 @@ class relation:
     def iter_2(self, A, x, y):
         x = x.reshape(-1, 1)
         y = y.reshape(-1, 1)
-        Axy = A - x @ y.T
+        Axy = (A - x @ y.T).filled(0)
         gx = -2 * Axy @ y
         gy = -2 * Axy.T @ x
 
-        s0 = np.zeros((10, 2))
-        for k, alpha in enumerate(np.linspace(-1, 1, num = 10)):
-            Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
-            s0[k, 0] = alpha
-            s0[k, 1] = frobenius_scp(Axy, Axy)
+        # optimal scaling
+        for NN in range(5, 100):
+            xx = np.linspace(-1, 1, num = NN)
+            yy = np.zeros(NN)
+            for k in range(NN):
+                Axy = A - (x + xx[k] * gx) @ (y + xx[k] * gy).T
+                yy[k] = frobenius_scp(Axy, Axy)
+            c = np.polyfit(xx, yy, 4)
+            if c[0] > 0:
+                break
+        assert(NN < 99)
 
-        s1 = np.zeros((100, 2))
-        for k, alpha in enumerate(np.linspace(-0.02, 0.02, num = 100)):
-            Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
-            s1[k, 0] = alpha
-            s1[k, 1] = frobenius_scp(Axy, Axy)
+        #s = 'f(x) = '
+        #for k in range(c.shape[0]):
+        #    s += f'+ ({c[k]}) * (x ** {c.shape[0] - k - 1}) '
+        #print(s)
 
-        s0[:, 1] = s0[:, 1] / np.max(s1)
-        s1[:, 1] = s1[:, 1] / np.max(s1)
+        roots = np.roots(np.array([4 * c[0], 3 * c[1], 2 * c[2], c[3]]))
+        roots = roots[roots.imag == 0].real
+        if roots.shape[0] == 1:
+            alpha = roots[0]
+        elif roots.shape[0] == 3:
+            root_1 = np.min(roots)
+            root_2 = np.max(roots)
+            Axy = A - (x + root_1 * gx) @ (y + root_1 * gy).T
+            value_1 = frobenius_scp(Axy, Axy)
+            Axy = A - (x + root_2 * gx) @ (y + root_2 * gy).T
+            value_2 = frobenius_scp(Axy, Axy)
+            alpha = root_1 if value_1 < value_2 else root_2
+        else:
+            assert(0)
 
-        np.savetxt('s0', s0)
-        np.savetxt('s1', s1)
+        # update x, y
+        xx = (x + alpha * gx)
+        yy = (y + alpha * gy)
+        beta = np.sqrt(la.norm(yy) / la.norm(xx))
+        xx *= beta
+        yy /= beta
 
-        
+        #Axy = A - xx @ yy.T
+        #value = frobenius_scp(Axy, Axy)
+        #print(value)
 
+        #s1 = np.zeros((100, 2))
+        #for k, alpha in enumerate(np.linspace(-0.1, 0.1, num = 100)):
+        #    Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
+        #    s1[k, 0] = alpha
+        #    s1[k, 1] = frobenius_scp(Axy, Axy)
+        #    np.savetxt('s1', s1)
+        #exit()
 
-        exit()
+        return(xx.reshape(-1), yy.reshape(-1))
 
     def approximate_vector(self, A, n, max_iter = 10000, tol = 1e-9, verbose = 1):
         x = np.random.rand(self.n)
