@@ -84,11 +84,41 @@ class relation:
         yy /= alpha
         return(xx, yy)
 
+    def iter_2(self, A, x, y):
+        x = x.reshape(-1, 1)
+        y = y.reshape(-1, 1)
+        Axy = A - x @ y.T
+        gx = -2 * Axy @ y
+        gy = -2 * Axy.T @ x
+
+        s0 = np.zeros((10, 2))
+        for k, alpha in enumerate(np.linspace(-1, 1, num = 10)):
+            Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
+            s0[k, 0] = alpha
+            s0[k, 1] = frobenius_scp(Axy, Axy)
+
+        s1 = np.zeros((100, 2))
+        for k, alpha in enumerate(np.linspace(-0.02, 0.02, num = 100)):
+            Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
+            s1[k, 0] = alpha
+            s1[k, 1] = frobenius_scp(Axy, Axy)
+
+        s0[:, 1] = s0[:, 1] / np.max(s1)
+        s1[:, 1] = s1[:, 1] / np.max(s1)
+
+        np.savetxt('s0', s0)
+        np.savetxt('s1', s1)
+
+        
+
+
+        exit()
+
     def approximate_vector(self, A, n, max_iter = 10000, tol = 1e-9, verbose = 1):
         x = np.random.rand(self.n)
         y = np.random.rand(self.n)
         for k in range(max_iter):
-            x_new, y_new = self.iter(A, x, y)
+            x_new, y_new = self.iter_2(A, x, y)
             dx = la.norm(x - x_new)
             dy = la.norm(y - y_new)
             dxy = la.norm(x_new - y_new)
