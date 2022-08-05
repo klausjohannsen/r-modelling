@@ -72,7 +72,7 @@ class relation:
         d = (1 - self.M.astype(int)) @ (x * x)
         return(d)
 
-    def iter(self, A, x, y):
+    def iter_1(self, A, x, y):
         dx = self.D(x)
         dy = self.D(y)
         xx = ma.dot(A, y) / dy
@@ -103,11 +103,6 @@ class relation:
                 break
         assert(NN < 99)
 
-        #s = 'f(x) = '
-        #for k in range(c.shape[0]):
-        #    s += f'+ ({c[k]}) * (x ** {c.shape[0] - k - 1}) '
-        #print(s)
-
         roots = np.roots(np.array([4 * c[0], 3 * c[1], 2 * c[2], c[3]]))
         roots = roots[roots.imag == 0].real
         if roots.shape[0] == 1:
@@ -130,18 +125,6 @@ class relation:
         xx *= beta
         yy /= beta
 
-        #Axy = A - xx @ yy.T
-        #value = frobenius_scp(Axy, Axy)
-        #print(value)
-
-        #s1 = np.zeros((100, 2))
-        #for k, alpha in enumerate(np.linspace(-0.1, 0.1, num = 100)):
-        #    Axy = A - (x + alpha * gx) @ (y + alpha * gy).T
-        #    s1[k, 0] = alpha
-        #    s1[k, 1] = frobenius_scp(Axy, Axy)
-        #    np.savetxt('s1', s1)
-        #exit()
-
         return(xx.reshape(-1), yy.reshape(-1))
 
     def approximate_vector(self, A, n, max_iter = 10000, tol = 1e-9, verbose = 1):
@@ -151,15 +134,18 @@ class relation:
             x_new, y_new = self.iter_2(A, x, y)
             dx = la.norm(x - x_new)
             dy = la.norm(y - y_new)
-            dxy = la.norm(x_new - y_new)
+            dxy_1 = la.norm(x_new - y_new)
+            dxy_2 = la.norm(x_new + y_new)
+            dxy = min(dxy_1, dxy_2)
+            sgn = '+' if dxy_1 < dxy_2 else '-'
             if verbose == 2:
-                print(f'vector {n}, iteration {k}: dx = {dx}, dy = {dy}, |x-y| = {dxy}')
+                print(f'vector {n}, iteration {k}: dx = {dx}, dy = {dy}, |x-y| = {dxy} ({sgn})')
             if (dx < tol and dy < tol) or k == max_iter - 1:
                 break
             x = x_new
             y = y_new
         if verbose:
-            print(f'vector {n}: dx = {dx}, dy = {dy}, |x-y| = {dxy}')
+            print(f'vector {n}, {k} iterations: dx = {dx}, dy = {dy}, |x-y| = {dxy} ({sgn})')
         sx = la.norm(x)
         sy = la.norm(y)
         return(x / sx, y / sy, sx * sy)
