@@ -7,15 +7,16 @@ import copy
 
 # config
 N = 100
-V = 3
+V = 8
 
 # run
 X = np.loadtxt(f'data/circle_{N}.txt')
-R = rm.distance_relation(X, treshold = 4)
-#R = rm.scp_relation(X, treshold = 0.99)
+#R = rm.distance_relation(X, treshold = 4)
+R = rm.scp_relation(X, treshold = 0)
 #R = rm.neigbor_relation(X, treshold = 0.5)
 
 X, Y, S = R.approximate(V, verbose = 1)
+X = np.diag(S) @ X
 
 import matplotlib.pyplot as plt
 
