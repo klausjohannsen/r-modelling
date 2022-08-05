@@ -7,20 +7,20 @@ import copy
 
 # config
 N = 100
+V = 3
 
 # run
-#X = np.loadtxt(f'data/circle_{N}.txt')
-X = np.loadtxt(f'data/line_{N}.txt')
-#R = rm.distance_relation(X, treshold = 20)
-#R = rm.scp_relation(X, treshold = 0)
-R = rm.neigbor_relation(X, treshold = 2)
+X = np.loadtxt(f'data/circle_{N}.txt')
+R = rm.distance_relation(X, treshold = 1)
+#R = rm.scp_relation(X, treshold = -0.5)
+#R = rm.neigbor_relation(X, treshold = 1)
 
-X, Y, S = R.approximate(8, verbose = 1)
+X, Y, S = R.approximate(V, verbose = 1)
 print(R)
 
 import matplotlib.pyplot as plt
 
-if (1):
+if V > 2:
     # 3D
     fig = plt.figure(figsize = (10, 10))
     ax = plt.axes(projection ="3d")
