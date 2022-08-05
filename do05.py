@@ -7,12 +7,12 @@ import copy
 
 # config
 N = 100
-V = 3
+V = 2
 
 # run
 X = np.loadtxt(f'data/circle_{N}.txt')
-R = rm.distance_relation(X, treshold = 1)
-#R = rm.scp_relation(X, treshold = -0.5)
+#R = rm.distance_relation(X, treshold = 1)
+R = rm.scp_relation(X, treshold = 0.99)
 #R = rm.neigbor_relation(X, treshold = 1)
 
 X, Y, S = R.approximate(V, verbose = 1)
