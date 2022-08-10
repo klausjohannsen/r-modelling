@@ -21,6 +21,9 @@ def frobenius_scp(x, y):
     s = np.sum(x.filled(0) * y.filled(0))
     return(s)
 
+def frobenius_norm(x):
+    return(np.sqrt(frobenius_scp(x, x)))
+
 # base class relation
 class relation:
     def __init__(self, t = None, create_substructures = True):
@@ -28,8 +31,6 @@ class relation:
         self.xl = []
         self.yl = []
         self.sl = []
-        self.A_partial_list = []
-        self.A_masked_partial_list = []
 
         if create_substructures:
             # transpose
@@ -48,24 +49,6 @@ class relation:
         s += f'R_full =\n{self.R_full}\n\n'
         s += f'M =\n{self.M}\n\n'
         s += f'R =\n{self.R.filled(np.nan)}\n\n'
-        s += f'SV    = {svdvals(self.R_full)[:4]}'
-        if len(self.sl):
-            s += f'\nSV(a) = {np.array(self.sl)}'
-            A = copy.deepcopy(self.R)
-            fn = [la.norm(A.filled(0)) ** 2]
-            n = len(self.sl)
-            for k in range(n):
-                A -= self.sl[k] * self.xl[k].reshape(-1, 1) @ self.yl[k].reshape(1, -1)
-                fn += [la.norm(A.filled(0)) ** 2]
-            s += f'\nFN = {np.array(fn)}\n\n'
-            corr = np.zeros((n, n))
-            frobenius_norm = np.zeros(n)
-            for k in range(n):
-                frobenius_norm[k] = np.sqrt(frobenius_scp(self.A_masked_partial_list[k], self.A_masked_partial_list[k]))
-            for k in range(n):
-                for kk in range(n):
-                    corr[k, kk] = frobenius_scp(self.A_masked_partial_list[k], self.A_masked_partial_list[kk]) / frobenius_norm[k] / frobenius_norm[kk]
-            s += f'corr = \n{corr}\n\n'
         return(s)
 
     def D(self, x):
@@ -127,7 +110,7 @@ class relation:
 
         return(xx.reshape(-1), yy.reshape(-1))
 
-    def approximate_vector(self, A, n, max_iter = 10000, tol = 1e-9, verbose = 1):
+    def approximate_vector(self, A, max_iter = 10000, tol = 1e-9):
         x = np.random.rand(self.n)
         y = np.random.rand(self.n)
         for k in range(max_iter):
@@ -138,34 +121,40 @@ class relation:
             dxy_2 = la.norm(x_new + y_new)
             dxy = min(dxy_1, dxy_2)
             sgn = '+' if dxy_1 < dxy_2 else '-'
-            if verbose == 2:
-                print(f'vector {n}, iteration {k}: dx = {dx}, dy = {dy}, |x-y| = {dxy} ({sgn})')
+            if 0:
+                print(f'vector {n}, iteration {k:4d}: dx = {dx}, dy = {dy}, |x-y| = {dxy} ({sgn})')
             if (dx < tol and dy < tol) or k == max_iter - 1:
                 break
             x = x_new
             y = y_new
-        if verbose:
-            print(f'vector {n}, {k} iterations: dx = {dx}, dy = {dy}, |x-y| = {dxy} ({sgn})')
+        info = f'[ n_iter = {k:4d}, dx = {dx:e}, dy = {dy:e}, |x-y| = {dxy:e}, ({sgn}) ]'
         sx = la.norm(x)
         sy = la.norm(y)
-        return(x / sx, y / sy, sx * sy)
+        return(x / sx, y / sy, sx * sy, info)
 
     def approximate(self, n, verbose = 1):
+        # init
         A = copy.deepcopy(self.R)
+        if verbose:
+            fn0 = frobenius_norm(A)
+            print(f'0: {fn0:e}')
+        
         for k in range(n):
-            x, y, s = self.approximate_vector(A, k, verbose = verbose)
+            # vector
+            x, y, s, info = self.approximate_vector(A)
             self.xl += [x]
             self.yl += [y]
             self.sl += [s]
-            A_partial = s * x.reshape(-1, 1) @ y.reshape(1, -1)
-            self.A_partial_list += [A_partial]
-            self.A_masked_partial_list += [ma.array(A_partial, mask = self.M)]
-            A -= self.A_partial_list[-1]
+            A -= s * x.reshape(-1, 1) @ y.reshape(1, -1)
 
+            # output
+            if verbose:
+                print(f'{k + 1}: {frobenius_norm(A):e} {frobenius_norm(A) / fn0:e}     {info}')
+
+        # return
         X = np.vstack(self.xl)
         Y = np.vstack(self.yl)
         S = np.array(self.sl)
-
         return(X, Y, S)
 
 # derived classes
