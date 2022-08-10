@@ -182,9 +182,9 @@ def svd(A, n = None, verbose = False):
             VT = VT[:n, :]
             s = s[:n]
 
-#    elif type(A) == np.ma.core.MaskedArray and ma.is_masked(A) == False:
-#        # masked array is not masked, apply regular svd
-#        return(svd(A.filled(np.nan), n = n, verbose = verbose))
+    elif type(A) == np.ma.core.MaskedArray and ma.is_masked(A) == False:
+        # masked array is not masked, apply regular svd
+        return(svd(A.filled(np.nan), n = n, verbose = verbose))
 
     elif type(A) == np.ma.core.MaskedArray:
         # masked svd
