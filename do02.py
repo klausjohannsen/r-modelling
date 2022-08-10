@@ -9,12 +9,13 @@ from modules.plot import plot2d, plot3d
 from modules.mask import mask_distance, mark_random
 
 # run
-X = circle(n = 100)
+X = circle(n = 500)
 R = rel.scp_relation(X)
-M = mark_random(R, mode = ['%', 80])
+R = R ** 2
+M = mark_random(R, mode = ['%', 50])
 R = ma.array(R, mask = M)
 
-U, S, VT = linalg.svd(R, n = 3, verbose = True)
+U, S, VT = linalg.svd(R, n = 4, verbose = True)
 XX = U @ S
 
 plot3d(XX)

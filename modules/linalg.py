@@ -114,7 +114,12 @@ def iter_2(A, x, y):
 
     return(xx.reshape(-1), yy.reshape(-1))
 
-def approximate_vector(A, max_iter = 10000, tol = 1e-6):
+def orthogonalize(x, xl):
+    for xx in xl:
+        x = x - (x @ xx) * xx / (la.norm(xx) ** 2)
+    return(x)
+
+def approximate_vector(A, max_iter = 10000, tol = 1e-7, xl = [], yl = [], ortho = False):
     n = A.shape[0]
     x = np.random.rand(n)
     y = np.random.rand(n)
@@ -133,12 +138,17 @@ def approximate_vector(A, max_iter = 10000, tol = 1e-6):
         x = x_new
         y = y_new
     info = f'[ n_iter = {k:4d}, dx = {dx:e}, dy = {dy:e}, |x-y| = {dxy:e}, ({sgn}) ]'
+
+    if ortho:
+        x = orthogonalize(x, xl)
+        y = orthogonalize(y, yl)
+
     sx = la.norm(x)
     sy = la.norm(y)
 
     return(x / sx, y / sy, sx * sy, info)
 
-def msvd(A, n = None, verbose = False):
+def msvd(A, n = None, verbose = False, ortho = False):
     # copy, as AA will be modified
     AA = deepcopy(A)
 
@@ -153,7 +163,7 @@ def msvd(A, n = None, verbose = False):
     yl = []
     sl = []
     for k in range(n):
-        x, y, s, info = approximate_vector(AA)
+        x, y, s, info = approximate_vector(AA, xl = xl, yl = yl, ortho = ortho)
         xl += [x]
         yl += [y]
         sl += [s]
@@ -171,7 +181,7 @@ def msvd(A, n = None, verbose = False):
     s = np.array(sl)
     return(U, s, VT)
 
-def svd(A, n = None, verbose = False):
+def svd(A, n = None, verbose = False, ortho = True):
     if type(A) == np.ndarray:
         # regular svd
         U, s, VT = la.svd(A)
@@ -188,7 +198,7 @@ def svd(A, n = None, verbose = False):
 
     elif type(A) == np.ma.core.MaskedArray:
         # masked svd
-        U, s, VT = msvd(A, n = n, verbose = verbose)
+        U, s, VT = msvd(A, n = n, verbose = verbose, ortho = ortho)
         S = np.diag(s)
 
     else:
