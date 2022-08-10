@@ -6,12 +6,13 @@ import modules.relation as rel
 import modules.linalg as linalg
 from modules.points import circle, xline
 from modules.plot import plot2d, plot3d
+from modules.mask import mask_distance, mark_random
 
 # run
-X = circle()
-R = rel.distance_relation(X)
-#R = rel.scp_relation(X) 
-#R = rel.binary_relation(R, threshold = 0.5, r = '>')
+X = circle(n = 100)
+R = rel.scp_relation(X)
+M = mark_random(R, mode = ['%', 80])
+R = ma.array(R, mask = M)
 
 U, S, VT = linalg.svd(R, n = 3, verbose = True)
 XX = U @ S
