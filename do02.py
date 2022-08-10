@@ -15,7 +15,7 @@ R = R ** 2
 M = mark_random(R, mode = ['%', 50])
 R = ma.array(R, mask = M)
 
-U, S, VT = linalg.svd(R, n = 4, verbose = True)
+U, S, VT = linalg.svd(R, n = 3, verbose = True)
 XX = U @ S
 
 plot3d(XX)
