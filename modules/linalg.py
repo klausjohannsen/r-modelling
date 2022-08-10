@@ -139,25 +139,6 @@ def approximate_vector(A, max_iter = 10000, tol = 1e-7):
 
     return(x / sx, y / sy, sx * sy, info)
 
-def orthogonalize(xl, yl, sl):
-    X = np.vstack(xl).T 
-    Y = np.vstack(yl).T 
-    A = X.T @ X
-    val, Q = la.eig(A)
-    XX = X @ Q
-    YY = Y @ Q
-    xxl = [ XX[:, k] for k in range(XX.shape[1]) ]
-    yyl = [ YY[:, k] for k in range(YY.shape[1]) ]
-    ssl = [ x @ x for x in xxl ]
-    print("SL", sl)
-    print("SSL", ssl)
-    xxl = [ x / np.sqrt(s) for s, x in zip(ssl, xxl) ]
-    yyl = [ y / np.sqrt(s) for s, y in zip(ssl, yyl) ]
-    ssl = [ s1 * s2 for s1, s2 in zip(sl, ssl) ]
-    print("SSL", ssl)
-    
-    return(xl, yl, sl)
-
 def msvd(A, n = None, verbose = False):
     # copy, as AA will be modified
     AA = deepcopy(A)
@@ -169,18 +150,30 @@ def msvd(A, n = None, verbose = False):
         print(f'0: {fn0:e}')
 
     # get n-dimensional approximation
-    xl = []
-    yl = []
-    sl = []
+    U = np.zeros((A.shape[0], 0))
+    VT = np.zeros((0, A.shape[0]))
+    S = np.zeros((0,0))
     for k in range(n):
         x, y, s, info = approximate_vector(AA)
-        xl += [x]
-        yl += [y]
-        sl += [s]
-        # here is some thing not working: what to make xls and yls orthogonal
-        #if k > 0:
-        #    xl, yl, sl = orthogonalize(xl, yl, sl)
-        AA = A - np.vstack(xl).T @ np.diag(np.array(sl)) @ np.vstack(yl)
+        U = np.hstack((U, x.reshape(-1, 1)))
+        VT = np.vstack((VT, y.reshape(1, -1)))
+        S = np.diag(np.hstack((np.diag(S), np.array([s]))))
+
+        # orthogonalize
+        if k > 0:
+            U = U @ np.sqrt(S)
+            VT = np.sqrt(S) @ VT
+            W = U.T @ U
+            val, Q = la.eig(W)
+            U = U @ Q
+            VT = Q.T @ VT
+            S = np.diag( [ U[:, kk] @ VT[kk, :] for kk in range(k + 1) ] )
+            inv_sqrt_S = np.diag( [ 1 / np.sqrt(U[:, kk] @ VT[kk, :]) for kk in range(k + 1) ] ) 
+            U = U @ inv_sqrt_S
+            VT = inv_sqrt_S @ VT
+
+        # rest matrix to approximate
+        AA = A - U @ S @ VT
 
         # output
         if verbose:
@@ -189,10 +182,7 @@ def msvd(A, n = None, verbose = False):
         print()
 
     # return
-    U = np.vstack(xl).T
-    VT = np.stack(yl)
-    s = np.array(sl)
-    return(U, s, VT)
+    return(U, np.diag(S), VT)
 
 def svd(A, n = None, verbose = False):
     if type(A) == np.ndarray:
