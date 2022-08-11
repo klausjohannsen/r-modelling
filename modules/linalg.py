@@ -56,6 +56,82 @@ def fnorm(x):
         return(la.norm(x))
 
 ##########################################
+# new svd part
+##########################################
+def iter_coll(A, X, Y, s):
+    X = X * np.sqrt(s).reshape(1, -1)
+    Y = Y * np.sqrt(s).reshape(1, -1)
+
+    M = A.mask
+    Dx = (1 - M.astype(int)) @ (X * X)
+    Dy = (1 - M.astype(int)) @ (Y * Y)
+    XX = ma.dot(A, Y) / Dy
+    YY = ma.dot(A.T, X) / Dx
+
+    # update
+    theta = 0.5 
+    X = (1 - theta) * X + theta * XX.filled(np.nan)
+    Y = (1 - theta) * Y + theta * YY.filled(np.nan)
+
+    # orthogonalize
+    for k in range(1, X.shape[1]):
+        for kk in range(0, k):
+            X[:, k] -= (X[:, k] @ X[:, kk]) / (X[:, kk] @ X[:, kk]) * X[:, kk]
+    for k in range(1, Y.shape[1]):
+        for kk in range(0, k):
+            Y[:, k] -= (Y[:, k] @ Y[:, kk]) / (Y[:, kk] @ Y[:, kk])* Y[:, kk]
+
+    # normalize XX, YY
+    X_norm = la.norm(X, axis = 0)
+    X /= X_norm.reshape(1, -1)
+    Y_norm = la.norm(Y, axis = 0)
+    Y /= Y_norm.reshape(1, -1)
+
+    # scale
+    s = X_norm * Y_norm
+
+    return(X, Y, s)
+
+def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
+    # copy, as AA will be modified
+    AA = deepcopy(A)
+
+    # print iff
+    if verbose:
+        fn0 = fnorm(AA)
+        print('## msvd')
+        print(f'0: {fn0:e}')
+
+    # get n-dimensional approximation
+    X = 1 - 2 * np.random.rand(A.shape[0], n)
+    Y = 1 - 2 * np.random.rand(A.shape[0], n)
+    s = np.ones(n)
+    AAA = X @ np.diag(s) @ Y.T
+    for k in range(max_iter):
+        X_new, Y_new, s_new = iter_coll(AA, X, Y, s)
+        AAA_new = X_new @ np.diag(s_new) @ Y_new.T
+        err = fnorm(AAA_new - AAA)
+        print(f'iter {k}: err = {err}, rel err = {err / fn0}')
+        if err < tol * fn0:
+            break
+        X = X_new
+        Y = Y_new
+        s = s_new
+        AAA = AAA_new
+
+    U = X
+    VT = Y.T
+
+    # output
+    if verbose:
+        AA = A - U @ np.diag(s) @ VT
+        print(f'{k + 1}: {fnorm(AA):e} {fnorm(AA) / fn0:e}')
+        print()
+
+    # return
+    return(U, s, VT)
+
+##########################################
 # svd
 ##########################################
 def iter_1(A, x, y):
@@ -195,13 +271,13 @@ def svd(A, n = None, verbose = False):
             VT = VT[:n, :]
             s = s[:n]
 
-    elif type(A) == np.ma.core.MaskedArray and ma.is_masked(A) == False:
-        # masked array is not masked, apply regular svd
-        return(svd(A.filled(np.nan), n = n, verbose = verbose))
+    #elif type(A) == np.ma.core.MaskedArray and ma.is_masked(A) == False:
+    #    # masked array is not masked, apply regular svd
+    #    return(svd(A.filled(np.nan), n = n, verbose = verbose))
 
     elif type(A) == np.ma.core.MaskedArray:
         # masked svd
-        U, s, VT = msvd(A, n = n, verbose = verbose)
+        U, s, VT = msvd_coll(A, n = n, verbose = verbose)
         S = np.diag(s)
 
     else:
