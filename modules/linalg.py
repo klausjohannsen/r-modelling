@@ -58,7 +58,7 @@ def fnorm(x):
 ##########################################
 # new svd part
 ##########################################
-def iter_coll(A, X, Y, s):
+def iter_coll(A, X, Y, s, theta = 0.5):
     X = X * np.sqrt(s).reshape(1, -1)
     Y = Y * np.sqrt(s).reshape(1, -1)
 
@@ -69,7 +69,6 @@ def iter_coll(A, X, Y, s):
     YY = ma.dot(A.T, X) / Dx
 
     # update
-    theta = 0.5 
     X = (1 - theta) * X + theta * XX.filled(np.nan)
     Y = (1 - theta) * Y + theta * YY.filled(np.nan)
 
@@ -108,9 +107,10 @@ def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
     s = np.ones(n)
     AAA = X @ np.diag(s) @ Y.T
     for k in range(max_iter):
-        X_new, Y_new, s_new = iter_coll(AA, X, Y, s)
+        X_new, Y_new, s_new = iter_coll(AA, X, Y, s, theta = min(0.2, 0.1 + 0.01 * k))
         AAA_new = X_new @ np.diag(s_new) @ Y_new.T
         err = fnorm(AAA_new - AAA)
+        rel_err = err / fn0
         print(f'iter {k}: err = {err}, rel err = {err / fn0}')
         if err < tol * fn0:
             break
