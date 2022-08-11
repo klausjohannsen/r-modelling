@@ -167,8 +167,8 @@ def msvd(A, n = None, verbose = False):
             val, Q = la.eig(W)
             U = U @ Q
             VT = Q.T @ VT
-            S = np.diag( [ U[:, kk] @ VT[kk, :] for kk in range(k + 1) ] )
-            inv_sqrt_S = np.diag( [ 1 / np.sqrt(U[:, kk] @ VT[kk, :]) for kk in range(k + 1) ] ) 
+            S = np.diag( [ U[:, kk] @ U[:, kk] for kk in range(k + 1) ] )
+            inv_sqrt_S = np.diag( [ 1 / np.sqrt(U[:, kk] @ U[:, kk]) for kk in range(k + 1) ] ) 
             U = U @ inv_sqrt_S
             VT = inv_sqrt_S @ VT
 
