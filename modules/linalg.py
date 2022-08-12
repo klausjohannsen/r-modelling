@@ -58,7 +58,7 @@ def fnorm(x):
 ##########################################
 # new svd part
 ##########################################
-def iter_coll(A, X, Y, s, theta = 0.5):
+def iter_coll_1(A, X, Y, s):
     X = X * np.sqrt(s).reshape(1, -1)
     Y = Y * np.sqrt(s).reshape(1, -1)
 
@@ -69,8 +69,8 @@ def iter_coll(A, X, Y, s, theta = 0.5):
     YY = ma.dot(A.T, X) / Dx
 
     # update
-    X = (1 - theta) * X + theta * XX.filled(np.nan)
-    Y = (1 - theta) * Y + theta * YY.filled(np.nan)
+    X = 0.5 * X + 0.5 * XX.filled(np.nan)
+    Y = 0.5 * Y + 0.5 * YY.filled(np.nan)
 
     # orthogonalize
     for k in range(1, X.shape[1]):
@@ -91,6 +91,63 @@ def iter_coll(A, X, Y, s, theta = 0.5):
 
     return(X, Y, s)
 
+def iter_coll_X(A, X, Y, s):
+    X = X * np.sqrt(s).reshape(1, -1)
+    Y = Y * np.sqrt(s).reshape(1, -1)
+
+    M = A.mask
+    Dy = (1 - M.astype(int)) @ (Y * Y)
+    XX = ma.dot(A, Y) / Dy
+
+    X = 0.65 * X + 0.35 * XX.filled(np.nan)
+
+    # orthogonalize
+    for k in range(1, X.shape[1]):
+        for kk in range(0, k):
+            X[:, k] -= (X[:, k] @ X[:, kk]) / (X[:, kk] @ X[:, kk]) * X[:, kk]
+
+    # normalize XX, YY
+    X_norm = la.norm(X, axis = 0)
+    X /= X_norm.reshape(1, -1)
+    Y_norm = la.norm(Y, axis = 0)
+    Y /= Y_norm.reshape(1, -1)
+
+    # scale
+    s = X_norm * Y_norm
+
+    return(X, Y, s)
+
+def iter_coll_Y(A, X, Y, s):
+    X = X * np.sqrt(s).reshape(1, -1)
+    Y = Y * np.sqrt(s).reshape(1, -1)
+
+    M = A.mask
+    Dx = (1 - M.astype(int)) @ (X * X)
+    YY = ma.dot(A.T, X) / Dx
+
+    Y = 0.65 * Y + 0.35 * YY.filled(np.nan)
+
+    # orthogonalize
+    for k in range(1, X.shape[1]):
+        for kk in range(0, k):
+            Y[:, k] -= (Y[:, k] @ Y[:, kk]) / (Y[:, kk] @ Y[:, kk]) * Y[:, kk]
+
+    # normalize XX, YY
+    X_norm = la.norm(X, axis = 0)
+    X /= X_norm.reshape(1, -1)
+    Y_norm = la.norm(Y, axis = 0)
+    Y /= Y_norm.reshape(1, -1)
+
+    # scale
+    s = X_norm * Y_norm
+
+    return(X, Y, s)
+
+def iter_coll_2(A, X, Y, s):
+    X, Y, s = iter_coll_X(A, X, Y, s)
+    X, Y, s = iter_coll_Y(A, X, Y, s)
+    return(X, Y, s)
+
 def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
     # copy, as AA will be modified
     AA = deepcopy(A)
@@ -107,7 +164,7 @@ def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
     s = np.ones(n)
     AAA = X @ np.diag(s) @ Y.T
     for k in range(max_iter):
-        X_new, Y_new, s_new = iter_coll(AA, X, Y, s, theta = min(0.2, 0.1 + 0.01 * k))
+        X_new, Y_new, s_new = iter_coll_2(AA, X, Y, s)
         AAA_new = X_new @ np.diag(s_new) @ Y_new.T
         err = fnorm(AAA_new - AAA)
         rel_err = err / fn0

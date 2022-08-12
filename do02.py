@@ -10,11 +10,11 @@ from modules.mask import mask_distance, mark_random
 
 # run
 X = circle(n = 1000)
-R = rel.scp_relation(X)
-M = mark_random(R, mode = ['%', 50])
+R = rel.distance_relation(X)
+M = mark_random(R, mode = ['%', 0])
 R = ma.array(R, mask = M)
 
-U, S, VT = linalg.svd(R, n = 3, verbose = True)
+U, S, VT = linalg.svd(R, n = 4, verbose = True)
 XX = U @ S
 
 plot3d(XX)
