@@ -91,7 +91,7 @@ def iter_coll_1(A, X, Y, s):
 
     return(X, Y, s)
 
-def iter_coll_X(A, X, Y, s):
+def iter_coll_X(A, X, Y, s, theta):
     X = X * np.sqrt(s).reshape(1, -1)
     Y = Y * np.sqrt(s).reshape(1, -1)
 
@@ -99,7 +99,7 @@ def iter_coll_X(A, X, Y, s):
     Dy = (1 - M.astype(int)) @ (Y * Y)
     XX = ma.dot(A, Y) / Dy
 
-    X = 0.65 * X + 0.35 * XX.filled(np.nan)
+    X = (1 - theta) * X + theta * XX.filled(np.nan)
 
     # orthogonalize
     for k in range(1, X.shape[1]):
@@ -117,7 +117,7 @@ def iter_coll_X(A, X, Y, s):
 
     return(X, Y, s)
 
-def iter_coll_Y(A, X, Y, s):
+def iter_coll_Y(A, X, Y, s, theta):
     X = X * np.sqrt(s).reshape(1, -1)
     Y = Y * np.sqrt(s).reshape(1, -1)
 
@@ -125,7 +125,7 @@ def iter_coll_Y(A, X, Y, s):
     Dx = (1 - M.astype(int)) @ (X * X)
     YY = ma.dot(A.T, X) / Dx
 
-    Y = 0.65 * Y + 0.35 * YY.filled(np.nan)
+    Y = theta * Y + theta * YY.filled(np.nan)
 
     # orthogonalize
     for k in range(1, X.shape[1]):
@@ -143,12 +143,12 @@ def iter_coll_Y(A, X, Y, s):
 
     return(X, Y, s)
 
-def iter_coll_2(A, X, Y, s):
-    X, Y, s = iter_coll_X(A, X, Y, s)
-    X, Y, s = iter_coll_Y(A, X, Y, s)
+def iter_coll_2(A, X, Y, s, theta):
+    X, Y, s = iter_coll_X(A, X, Y, s, theta)
+    X, Y, s = iter_coll_Y(A, X, Y, s, theta)
     return(X, Y, s)
 
-def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
+def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-8, verbose = False):
     # copy, as AA will be modified
     AA = deepcopy(A)
 
@@ -159,25 +159,40 @@ def msvd_coll(A, n = None, max_iter = 1000, tol = 1e-7, verbose = False):
         print(f'0: {fn0:e}')
 
     # get n-dimensional approximation
-    X = 1 - 2 * np.random.rand(A.shape[0], n)
-    Y = 1 - 2 * np.random.rand(A.shape[0], n)
-    s = np.ones(n)
-    AAA = X @ np.diag(s) @ Y.T
+    X_0 = 1 - 2 * np.random.rand(A.shape[0], n)
+    Y_0 = 1 - 2 * np.random.rand(A.shape[0], n)
+    s_0 = np.ones(n)
+    AAA_0 = X_0 @ np.diag(s_0) @ Y_0.T
     for k in range(max_iter):
-        X_new, Y_new, s_new = iter_coll_2(AA, X, Y, s)
-        AAA_new = X_new @ np.diag(s_new) @ Y_new.T
-        err = fnorm(AAA_new - AAA)
-        rel_err = err / fn0
-        print(f'iter {k}: err = {err}, rel err = {err / fn0}')
-        if err < tol * fn0:
-            break
-        X = X_new
-        Y = Y_new
-        s = s_new
-        AAA = AAA_new
 
-    U = X
-    VT = Y.T
+        # iterate
+        X_1, Y_1, s_1 = iter_coll_2(AA, X_0, Y_0, s_0, 0.25)
+        AAA_1 = X_1 @ np.diag(s_1) @ Y_1.T
+
+        # errors
+        AAA_err = fnorm(AAA_1 - AAA_0)
+        AAA_err_rel = AAA_err / fn0
+
+        # convergence rate
+        if k > 1:
+            cr = AAA_err / AAA_err_old
+            #print(f'{k} {cr:e}')
+        AAA_err_old = AAA_err
+
+        # print
+        print(f'iter {k}: err = {AAA_err}, rel err = {AAA_err_rel}')
+        if AAA_err_rel < tol:
+            break
+
+        # update
+        X_0 = X_1
+        Y_0 = Y_1
+        s_0 = s_1
+        AAA_0 = AAA_1
+
+    U = X_1
+    VT = Y_1.T
+    s = s_1
 
     # output
     if verbose:
